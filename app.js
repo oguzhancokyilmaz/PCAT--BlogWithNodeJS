@@ -1,8 +1,11 @@
 const express = require('express');
-const mongoose = require ('mongoose')
+const mongoose = require('mongoose');
+const fileUpload = require('express-fileupload');
 const ejs = require('ejs');
 const path = require('path');
-const Photo = require('./models/Photo')
+const fs = require('fs'); // dosya işlemleri için
+const Photo = require('./models/Photo');
+const { Console } = require('console');
 
 const app = express();
 
@@ -17,22 +20,23 @@ app.set('view engine', 'ejs');
 
 //MIDDLEWARES
 app.use(express.static('public'));
-app.use(express.urlencoded({extended:true})) //urldeki datayı okumamızı sağlar
-app.use(express.json()) // Yukardaki ve bu body parser için kullanılıyormuş. Bu ikisini yazdığımızda formdan gönderdiğimiz veriyi req.body ile yakalayıp konsola yazdırabildik. Bunlar middleware. datayı json formatına döndürmeyi sağlar
+app.use(express.urlencoded({ extended: true })); //urldeki datayı okumamızı sağlar
+app.use(express.json()); // Yukardaki ve bu body parser için kullanılıyormuş. Bu ikisini yazdığımızda formdan gönderdiğimiz veriyi req.body ile yakalayıp konsola yazdırabildik. Bunlar middleware. datayı json formatına döndürmeyi sağlar
+app.use(fileUpload()); // fileUpload middleware'i
 
 //ROUTES
-app.get('/',async (req, res) => {
-  const photos = await Photo.find({})
-  res.render('index',{
-    photos // bu aynı zamanda photos: photos komutudur veritabanından aldık photo verilerini index.ejs ye yolladık
+app.get('/', async (req, res) => {
+  const photos = await Photo.find({}).sort('-dateCreated'); // başa eksi koyunca tersten sıraladı
+  res.render('index', {
+    photos, // bu aynı zamanda photos: photos komutudur veritabanından aldık photo verilerini index.ejs ye yolladık
   });
 });
 
 app.get('/photos/:id', async (req, res) => {
- // console.log(req.params.id) // yakaladığımız id'yi log ile ekrana yazdırdık
-  const photo = await Photo.findById(req.params.id) // burdaki fotoğraf bilgisini alana kadar beklemek istiyorum o yüzden await
-  res.render('photo',{
-    photo
+  // console.log(req.params.id) // yakaladığımız id'yi log ile ekrana yazdırdık
+  const photo = await Photo.findById(req.params.id); // burdaki fotoğraf bilgisini alana kadar beklemek istiyorum o yüzden await
+  res.render('photo', {
+    photo,
   });
 });
 app.get('/about', (req, res) => {
@@ -42,8 +46,26 @@ app.get('/add', (req, res) => {
   res.render('add');
 });
 app.post('/photos', async (req, res) => {
-  await Photo.create(req.body)
-  res.redirect('/')
+  //console.log(req.files.image);// burdaki image formumuzda file labelimizin
+  /* await Photo.create(req.body);
+  res.redirect('/'); */
+
+  const uploadDir = 'public/uploads';
+  if (!fs.existsSync(uploadDir)) {
+    // eğer uploadDir yoksa(oluşmamışsa)
+    fs.mkdirSync(uploadDir); // sync fonksiyon önce bunu yap sonra geç. ve dosyayı oluştur kodu
+  }
+
+  let uploadedImage = req.files.image;
+  let uploadPath = __dirname + '/public/uploads/' + uploadedImage.name; // görselleri atmak için public'in içinde uploads klasörü oluşturacağız bunun için yol tanımladık uploads klasörüne.
+
+  uploadedImage.mv(uploadPath, async () => {
+    await Photo.create({
+      ...req.body, // req.body'nin hepisini al (name ve description geliyor burdan)
+      image: '/uploads/' + uploadedImage.name, //bir de image bilgisi ekle
+    });
+    res.redirect('/');
+  }); // bu fonksiyon resmi al move et. 1.parametre yol, ikinci parametre veritabanına bilginin gitmesi.
 });
 
 const port = 3000;
