@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const fileUpload = require('express-fileupload');
+const methodOverride = require('method-override');
 const ejs = require('ejs');
 const path = require('path');
 const fs = require('fs'); // dosya işlemleri için
@@ -23,6 +24,7 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true })); //urldeki datayı okumamızı sağlar
 app.use(express.json()); // Yukardaki ve bu body parser için kullanılıyormuş. Bu ikisini yazdığımızda formdan gönderdiğimiz veriyi req.body ile yakalayıp konsola yazdırabildik. Bunlar middleware. datayı json formatına döndürmeyi sağlar
 app.use(fileUpload()); // fileUpload middleware'i
+app.use(methodOverride('_method')); // Bilgileri edit ederken put isteği yapmamız gerekir ama tarayıcılar get post destekler bunun için methodOverride kullanırız
 
 //ROUTES
 app.get('/', async (req, res) => {
@@ -66,6 +68,19 @@ app.post('/photos', async (req, res) => {
     });
     res.redirect('/');
   }); // bu fonksiyon resmi al move et. 1.parametre yol, ikinci parametre veritabanına bilginin gitmesi.
+});
+app.get('/photos/edit/:id', async (req, res) => {
+  const photo = await Photo.findOne({ _id: req.params.id });
+  res.render('edit', {
+    photo,
+  });
+});
+app.put('/photos/:id', async (req, res) => {
+  const photo = await Photo.findOne({ _id: req.params.id });
+  photo.title = req.body.title;
+  photo.description = req.body.description;
+  photo.save(); //photoyu kaydettik
+  res.redirect(`/photos/${req.params.id}`)
 });
 
 const port = 3000;
