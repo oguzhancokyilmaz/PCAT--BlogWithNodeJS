@@ -28,6 +28,13 @@ app.get('/',async (req, res) => {
   });
 });
 
+app.get('/photos/:id', async (req, res) => {
+ // console.log(req.params.id) // yakaladığımız id'yi log ile ekrana yazdırdık
+  const photo = await Photo.findById(req.params.id) // burdaki fotoğraf bilgisini alana kadar beklemek istiyorum o yüzden await
+  res.render('photo',{
+    photo
+  });
+});
 app.get('/about', (req, res) => {
   res.render('about');
 });
