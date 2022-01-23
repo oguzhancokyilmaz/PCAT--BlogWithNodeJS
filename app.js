@@ -14,6 +14,7 @@ const app = express();
 mongoose.connect('mongodb://localhost/pcat-test-db', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  // useFindAndModify: false
 });
 
 // TEMPLATE ENGİNE
@@ -24,7 +25,11 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true })); //urldeki datayı okumamızı sağlar
 app.use(express.json()); // Yukardaki ve bu body parser için kullanılıyormuş. Bu ikisini yazdığımızda formdan gönderdiğimiz veriyi req.body ile yakalayıp konsola yazdırabildik. Bunlar middleware. datayı json formatına döndürmeyi sağlar
 app.use(fileUpload()); // fileUpload middleware'i
-app.use(methodOverride('_method')); // Bilgileri edit ederken put isteği yapmamız gerekir ama tarayıcılar get post destekler bunun için methodOverride kullanırız
+app.use(
+  methodOverride('_method', {
+    methods: ['POST', 'GET'],
+  })
+); // Bilgileri edit ederken put isteği yapmamız gerekir ama tarayıcılar get post destekler bunun için methodOverride kullanırız
 
 //ROUTES
 app.get('/', async (req, res) => {
@@ -80,7 +85,15 @@ app.put('/photos/:id', async (req, res) => {
   photo.title = req.body.title;
   photo.description = req.body.description;
   photo.save(); //photoyu kaydettik
-  res.redirect(`/photos/${req.params.id}`)
+  res.redirect(`/photos/${req.params.id}`);
+});
+
+app.delete('/photos/:id', async (req, res) => {
+  const photo = await Photo.findOne({ _id: req.params.id });
+  let deletedImage = __dirname + '/public' + photo.image;
+  fs.unlinkSync(deletedImage);
+  await Photo.findByIdAndRemove(req.params.id);
+  res.redirect('/');
 });
 
 const port = 3000;
